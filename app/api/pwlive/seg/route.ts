@@ -42,13 +42,27 @@ export async function GET(req: NextRequest) {
     const ctype = upstream.headers.get("content-type");
     if (looksLikeM3U8(url, ctype)) {
       // Nested/variant playlist — rewrite it too.
+      //
+      // THIS is what was causing "only 3-5s plays, then it just loops /
+      // freezes" on LIVE streams: for a master→child playlist shape, THIS
+      // nested child playlist (not /api/pwlive/player) is the one hls.js
+      // re-polls every few seconds to discover new segments as the live
+      // class progresses. Without an explicit no-store Cache-Control here,
+      // Vercel's edge cache (and/or the browser's own HTTP cache) was free
+      // to cache the FIRST response and keep serving that same stale
+      // snapshot back on every subsequent poll — so hls.js kept re-fetching
+      // the exact same short, early segment window forever instead of ever
+      // seeing new segments. Explicit no-store fixes that.
       const body = await upstream.text();
       const origin = req.nextUrl.origin;
       const rewritten = rewriteM3U8(body, url, { mode: "proxy", origin });
       return withCors(
         new NextResponse(rewritten, {
           status: 200,
-          headers: { "Content-Type": "application/vnd.apple.mpegurl" },
+          headers: {
+            "Content-Type": "application/vnd.apple.mpegurl",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+          },
         })
       );
     }
