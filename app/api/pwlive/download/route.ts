@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchUpstream, rewriteM3U8, extractUrlParam } from "@/lib/hlsProxy";
+import { fetchUpstream, rewriteM3U8 } from "@/lib/hlsProxy";
 import { withCors } from "@/lib/cors";
 
 export const runtime = "nodejs";
@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
  *     CDN speed, and zero load on our serverless functions.
  */
 export async function GET(req: NextRequest) {
-  const url = extractUrlParam(req);
+  const url = req.nextUrl.searchParams.get("url");
 
   if (!url) {
     return withCors(NextResponse.json({ error: "URL missing" }, { status: 400 }));
