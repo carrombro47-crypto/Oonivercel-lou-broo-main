@@ -1,1 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>PW Live Player</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
 
+.player-wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+}
+
+#video { width: 100%; height: 100%; object-fit: contain; background: #000; display: block; }
+
+/* ── LIVE badge + elapsed timer, top-left ── */
+.live-stack {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    z-index: 10;
+    display: none;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    pointer-events: none;
+}
+.live-stack.show { display: flex; }
+
+.live-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 5px 12px 5px 10px;
+    border-radius: 4px;
+    border-left: 3px solid #ff2d2d;
+}
+.live-dot {
+    width: 8px;
+    height: 8px;
+    background: #ff2d2d;
+    border-radius: 50%;
+    animation: pwBlink 1s ease-in-out infinite;
+    box-shadow: 0 0 6px #ff2d2d;
+}
+.live-text {
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.live-elapsed {
+    background: rgba(0, 0, 0, 0.7);
+    color: #d1d5db;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 4px;
+}
+@keyframes pwBlink { 50% { opacity: 0.2; } }
+
+/* ── Go Live button — right side, just above the native control bar ── */
+.go-live-btn {
+    position: absolute;
+    right: 14px;
+    bottom: 52px;
+    z-index: 10;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    background: #ff2d2d;
+    color: #fff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(255, 45, 45, .45);
+}
+.go-live-btn.show { display: flex; }
+.go-live-btn .gdot {
+    width: 7px; height: 7px; border-radius: 50%; background: #fff;
+    animation: pwBlink 1s ease-in-out infinite;
+}
+
+/* ── Fullscreen button, top-right ── */
+.fs-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 10;
+    width: 32px;
+    height: 32px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, .2);
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+/* ── Loading / error overlay ── */
+.status {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    z-index: 5;
+    text-align: center;
+    padding: 0 24px;
+}
+.spinner {
+    width: 32px; height: 32px; margin: 0 auto 12px;
+    border: 2px solid rgba(255, 255, 255, 0.08);
+    border-top: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    animation: pwSpin 0.7s linear infinite;
+}
+@keyframes pwSpin { to { transform: rotate(360deg); } }
+.status.error { color: rgba(255, 80, 80, 0.85); }
+</style>
+</head>
+<body>
+
+<div class="player-wrap" id="shell">
+    <div class="status" id="status">
+        <div class="spinner" id="spinner"></div>
+        <div id="statusText">Loading...</div>
+    </div>
+
+    <div class="live-stack" id="liveStack">
+        <div class="live-badge"><div class="live-dot"></div><span class="live-text">LIVE</span></div>
+        <div class="live-elapsed" id="liveElapsed">00:00</div>
+    </div>
+
+    <button class="go-live-btn" id="goLiveBtn"><span class="gdot"></span>GO LIVE</button>
+
+    <video id="video" controls autoplay playsinline></video>
+
+    <button class="fs-btn" id="fsBtn" title="Fullscreen">⛶</button>
+</div>
+
+<script src="{{ url_for('static', filename='js/player.js') }}"></script>
+</body>
+</html>
