@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchUpstream, rewriteM3U8, extractUrlParam } from "@/lib/hlsProxy";
+import { fetchUpstream, rewriteM3U8 } from "@/lib/hlsProxy";
 import { withCors } from "@/lib/cors";
 
 // Node.js runtime (not Edge) — we need Buffer for base64url tokens and a
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic"; // live stream — never cache this rout
  * issues) and never exposes the real upstream CDN URL to client JS.
  */
 export async function GET(req: NextRequest) {
-  const url = extractUrlParam(req);
+  const url = req.nextUrl.searchParams.get("url");
 
   if (!url) {
     return withCors(NextResponse.json({ error: "URL missing" }, { status: 400 }));
