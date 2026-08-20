@@ -52,6 +52,43 @@ const AUTH_PARAMS = new Set([
 const UPSTREAM_TIMEOUT_MS = 15_000;
 const UPSTREAM_MAX_RETRIES = 2; // transient CDN edge hiccups ke liye
 
+/**
+ * Pull the `?url=<...>` query param out MANUALLY from the raw request
+ * search string, instead of via `req.nextUrl.searchParams.get("url")`.
+ *
+ * WHY: signed CDN links (CloudFront etc.) carry their OWN query string —
+ * `?start=...&Signature=...&Key-Pair-Id=...&Policy=...`. The normal flow
+ * (app/player/page.tsx) does `encodeURIComponent(rawUrl)` before building
+ * `/api/pwlive/player?url=${encoded}`, so all of that inner `&`/`?` stays
+ * safely inside the single `url` value. But if that inner CDN link is ever
+ * appended RAW/un-encoded — e.g. someone pastes the CloudFront URL straight
+ * after `?url=` in the address bar to test, or a bot/script builds the link
+ * without encoding — `searchParams.get("url")` stops at the FIRST `&`, so
+ * everything after it (crucially `Signature`, `Key-Pair-Id`, `Policy`) gets
+ * silently dropped. We then fetch the CDN with an incomplete/unsigned URL,
+ * and CloudFront correctly rejects it with 403 — which looks like a CORS
+ * failure in the browser (opaque error), but has nothing to do with CORS;
+ * the upstream request itself was malformed before it ever left our server.
+ *
+ * This reads everything after `url=` to the end of the search string as the
+ * target, then decodeURIComponent()s it. That's a safe no-op on parts that
+ * were never percent-encoded (literal `&`/`?` pass through untouched), so it
+ * correctly handles BOTH the properly-encoded case and the raw-pasted case.
+ */
+export function extractUrlParam(req: { nextUrl: { search: string } }, paramName = "url"): string | null {
+  const search = req.nextUrl.search; // raw string, e.g. "?url=https://...&Signature=..."
+  const marker = `${paramName}=`;
+  const idx = search.indexOf(marker);
+  if (idx === -1) return null;
+  const raw = search.slice(idx + marker.length);
+  if (!raw) return null;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw; // malformed % sequence — fall back to the raw slice as-is
+  }
+}
+
 // ── base64url helpers (opaque segment tokens for "proxy" mode) ─────────
 export function b64urlEncode(s: string): string {
   return Buffer.from(s, "utf-8").toString("base64url");
